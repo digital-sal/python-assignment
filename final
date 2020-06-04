@@ -1,0 +1,238 @@
+import numpy as np
+import random
+from numpy import genfromtxt
+from statistics import median
+import csv
+
+  
+def load_from_csv(path):
+    '''
+    Path can be the name of the csv file or complete path.
+    '''
+    with open(path,'r') as csvfile:
+        dataList=list(list(rec) for rec in csv.reader(csvfile))
+        dataList=[list(map(float,i)) for i in dataList]
+    return dataList
+
+def get_distance(arg1,arg2):
+    '''
+    Two lists are passed and their Manhattan distance is returned.
+    '''
+    sum_=0
+    for i in range(len(arg1)):
+        sum_=sum_+abs(arg2[i]-arg1[i])
+    return sum_
+
+def get_max(list_,col):
+    '''
+    A 2d list and the column number 'col' is passed to get the maximum value.
+    '''
+    max_=list_[0][col]
+    for i in range(1,len(list_)):
+        if list_[i][col]>max_:
+            max_=list_[i][col]
+    return max_
+
+def get_min(list_,col):
+    '''
+    A 2d list and the column number 'col' is passed to get the maximum value.
+    '''
+    min_=list_[0][col]
+    for i in range(1,len(list_)):
+        if list_[i][col]<min_:
+            min_=list_[i][col]
+    return min_
+
+
+def sum_columns(list_,col):
+    '''
+    A helping function is created to calculate the sum of values within a specified column 'col' from a 2d list.
+    This sum is used for the calculation of Manhattan distance.
+    '''
+    add=0
+    for i in range(0,len(list_)):
+        add=add+list_[i][col]
+    return add
+
+def standardised_matrix(list_):
+    '''
+    A 2d list is passed and it's standardised form is returned.
+    '''
+    x_=len(list_)
+    y_=len(list_[0])
+    list_std=[[None for _ in range(y_)] for _ in range(x_)]
+    for i in range(0,x_):
+        for j in range(0,y_):
+            item_avg=sum_columns(list_,j)/x_
+            list_std[i][j]=(list_[i][j]-item_avg)/(get_max(list_,j)-get_min(list_,j))
+    return list_std
+
+def get_randomK(list_,k):
+    '''
+    k rows are selected at random position initially. list_ is the 2d list and k is the number of clusters.
+    '''
+    if k>=1 and k<len(list_):
+        c=[[None for _ in range(len(list_[0]))] for _ in range(k)]
+        rand_rows=[random.randrange(1,178) for _ in range(k)]
+        for _ in range(k):
+            c[_]=list_[rand_rows[_]-1]
+        return c
+    else:
+        return -1
+
+def get_K(list_,value,k,col):
+    '''
+    To get the value of a cluster to assign it in our cluster list S. A 2d list is passed and the minimum value among
+    the cluster against that particular data point by using the argument 'col'.
+    '''
+    for index in range(k):
+        if list_[index][col]==value:
+            return index
+
+def get_median(list_,col):
+    '''
+    A 2d list and the col is passed to get the median value. If there are odd number of elements then the middle value
+    after sorting is returned otherwise if there are even number of elements then the average of the middle points is returned.
+    '''
+    temp_list=[]
+    for i in range(0,len(list_)):
+        temp_list.append(list_[i][col])
+    temp_list.sort()
+    length=len(list_)
+    id=int(length/2)
+    if length%2!=0:
+        return temp_list[id]
+    else:
+        return (temp_list[id-1]+temp_list[id])/2
+
+
+def get_groups(DataRows, k):
+    '''
+    This function assigns our datapoints to their respective clusters.
+    DataRows is the 2d list of our dataset and k is the number of clusters.
+    '''
+    S = [None for _ in range(len(DataRows))]
+    DistList = [[None for _ in range(len(DataRows))] for _ in range(k)]
+
+    # Creating a 2d temporary list to save the manhattan distances of every point against every cluster.
+    # if there are 5 clusters and we have 178 rows with 13 column then our DistList will have the following dimensions:
+    # 5 rows and 178 columns. rows represents cluster k and first column represent first datapoint second column represent
+    # second datapoint and so on.
+
+    for i in range(k):
+        for j, item in enumerate(DataList):
+            DistList[i][j] = get_distance(item, c[i])
+
+    # After calculating the distance of each datapoint with every cluster now we have to assign that datapoint to the cluster
+    # which gave us the minimum distance.
+    for i in range(len(DataRows)):
+        min_k_value = get_min(DistList, i)
+        S[i] = get_K(DistList, min_k_value, k, i)
+    return S
+
+
+def get_centroids(list_, S, k):
+    '''
+    A 2d list, S which is our cluster list and k are passed to calculate the new centroids.
+    '''
+    c = [[None for _ in range(len(list_[0]))] for _ in range(k)]
+
+    # for every cluster we have to
+    for _ in range(k):
+
+        # create a list which indicates the indexes/positions of our datapoints which are already assigned to this cluster.
+        # for this purpose map and lambda functions are utilized to enhance code readability.
+
+        k_indices = list(map(lambda num: num == _, S))
+
+        # now against a list of boolean values actual indexes are revealed inorder to fetch the only rows of that particular cluster.
+
+        indexes = [i for i, x in enumerate(k_indices) if x]
+        # new centroids have to be calculated by using the median values of every column against each datapoint within the same cluster.
+        for column in range(len(list_[0])):
+            l = [list_[index] for index in indexes]
+            c[_][column] = get_median(l, column)
+    return c
+
+# Clustering Algorithm
+def Clustering(k):
+    DataRows=load_from_csv('Data.csv')
+    global DataList
+    DataList=standardised_matrix(DataRows)
+    if k>1 and k<len(DataList):
+        global c
+        c=get_randomK(DataList,k)
+        S=get_groups(DataList,k)
+
+        #printing the cluster information and iteration number
+        iteration=1
+        #logic implemented for stopping criteria i.e when there is no change in cluster list S then stop.
+        S_old=S
+        S_new=[]
+        print("K=",k)
+
+        while(S_old!=S_new):
+            print("\n")
+            print("Iteration number\t",iteration)
+            sum_=0
+            S_old=S_new
+            c=get_centroids(DataList,S,k)
+            S=get_groups(DataList,k)
+            S_new=S
+            print("Group number\t Total wines")
+            for loop in range(k):
+                print('Group',loop+1,'\t ',S.count(loop))
+                sum_+=S.count(loop)
+            print('-------\t\t ',sum_,' wines')
+            iteration+=1
+    else:
+        print('Invalid value of K',k)
+
+
+def run_test():
+    # Replace ur filename with Data.csv
+    global DataList
+    global c
+    '''
+    For 2 K
+    '''
+    print("")
+    K = 2
+    print('Creating ', K, ' clusters...')
+    Clustering(K)
+
+    '''
+    For 3 K
+    '''
+    print("")
+    K = 3
+    print('Creating ', K, ' clusters...')
+    Clustering(K)
+
+    '''
+     For 4 K
+    '''
+    print("")
+    K = 4
+    print('Creating ', K, ' clusters...')
+    Clustering(K)
+
+    '''
+    For 5 K
+    '''
+    print("")
+    K = 5
+    print('Creating ', K, ' clusters...')
+
+    Clustering(K)
+
+    '''
+    For 6 K
+    '''
+    print("")
+    K = 6
+    print('Creating ', K, ' clusters...')
+
+    Clustering(K)
+
+run_test()
